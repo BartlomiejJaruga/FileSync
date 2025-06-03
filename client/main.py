@@ -20,6 +20,6 @@ def get_client_config():
 if __name__ == "__main__":
     CLIENT_ID, ARCHIVE_PATH = get_client_config()
 
-    server_ip, server_port = find_server()
-    print(f"[CLIENT] USP server found at {server_ip}:{server_port}")
-    start_tcp_client(ARCHIVE_PATH, CLIENT_ID, server_ip, server_port)
+    # server_ip, server_port = find_server()
+    # print(f"[CLIENT] USP server found at {server_ip}:{server_port}")
+    start_tcp_client(ARCHIVE_PATH, CLIENT_ID)

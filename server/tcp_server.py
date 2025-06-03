@@ -2,9 +2,8 @@ import socket
 import threading
 import queue
 import json
-from common.protocol import MESSAGE_TYPES
+from common.protocol import MESSAGE_TYPES, make_next_sync_message
 from server.archive_handler import ensure_client_archive_dir, get_server_file_index, compare_file_indexes, save_file_stream
-
 
 active_client_lock = threading.Lock()
 active_client = None
@@ -26,7 +25,7 @@ def recv_json_message(conn):
         return None
 
 
-def handle_client(conn, addr):
+def handle_client(conn, addr, sync_interval_seconds):
     global active_client
 
     print(f"[TCP SERVER] Connected with client {addr}")
@@ -54,16 +53,16 @@ def handle_client(conn, addr):
                 expected_files = {f["path"]: f for f in client_files if f["path"] in to_upload}
 
                 if not expected_files:
-                    conn.send((json.dumps({"type": MESSAGE_TYPES["NEXT_SYNC"]}) + "\n").encode())
+                    conn.send(json.dumps(make_next_sync_message(str(sync_interval_seconds))).encode())
                     print(f"[TCP SERVER] No files to upload. Sent NEXT_SYNC to {addr}")
                     break
-
-                archive_tasks = {
-                    "type": MESSAGE_TYPES["ARCHIVE_TASKS"],
-                    "upload": [{"path": path} for path in expected_files]
-                }
-                conn.send((json.dumps(archive_tasks) + "\n").encode())  # dodane \n
-                print(f"[TCP SERVER] Sent ARCHIVE_TASKS to {addr}")
+                else:
+                    archive_tasks = {
+                        "type": MESSAGE_TYPES["ARCHIVE_TASKS"],
+                        "upload": [{"path": path} for path in expected_files]
+                    }
+                    conn.send(json.dumps(archive_tasks).encode())
+                    print(f"[TCP SERVER] Sent ARCHIVE_TASKS to {addr}")
 
             elif msg_type == MESSAGE_TYPES.get("FILE_TRANSFER"):
                 path = msg["path"]
@@ -82,7 +81,7 @@ def handle_client(conn, addr):
                 expected_files.pop(path, None)
 
                 if not expected_files:
-                    conn.send((json.dumps({"type": MESSAGE_TYPES["NEXT_SYNC"]}) + "\n").encode())
+                    conn.send(json.dumps(make_next_sync_message(str(sync_interval_seconds))).encode())
                     print(f"[TCP SERVER] Sent NEXT_SYNC to {addr}")
                     break
 
@@ -97,11 +96,10 @@ def handle_client(conn, addr):
         with active_client_lock:
             active_client = None
         print(f"[TCP SERVER] Session with {addr} ended.")
-        start_next_client()
+        start_next_client(sync_interval_seconds)
 
 
-
-def start_next_client():
+def start_next_client(sync_interval_seconds):
     global active_client
 
     with active_client_lock:
@@ -111,15 +109,15 @@ def start_next_client():
                 conn.send(json.dumps({"type": MESSAGE_TYPES["READY"]}).encode())
                 print(f"[TCP SERVER] Sent READY to {addr}")
                 active_client = conn
-                threading.Thread(target=handle_client, args=(conn, addr), daemon=True).start()
+                threading.Thread(target=handle_client, args=(conn, addr, sync_interval_seconds), daemon=True).start()
             except Exception as e:
                 print(f"[TCP SERVER] Failed to resume client {addr}: {e}")
                 conn.close()
                 active_client = None
-                start_next_client()
+                start_next_client(sync_interval_seconds)
 
 
-def start_tcp_server(host='0.0.0.0', port=6001):
+def start_tcp_server(host='0.0.0.0', port=6001, sync_interval_seconds=60):
     global active_client
 
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -140,7 +138,7 @@ def start_tcp_server(host='0.0.0.0', port=6001):
                     if active_client is None:
                         conn.send(json.dumps({"type": MESSAGE_TYPES["READY"]}).encode())
                         active_client = conn
-                        threading.Thread(target=handle_client, args=(conn, addr), daemon=True).start()
+                        threading.Thread(target=handle_client, args=(conn, addr, sync_interval_seconds), daemon=True).start()
                     else:
                         print(f"[TCP SERVER] Server is busy. Queuing {addr}")
                         try:

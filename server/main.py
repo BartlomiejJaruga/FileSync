@@ -25,7 +25,7 @@ if __name__ == "__main__":
     TCP_PORT, SYNC_INTERVAL_SECONDS = get_server_config()
 
     start_udp_discovery_server(TCP_PORT)
-    start_tcp_server(port=TCP_PORT)
+    start_tcp_server(port=TCP_PORT, sync_interval_seconds=SYNC_INTERVAL_SECONDS)
 
     print("[SERVER] USP Server is running...")
     print(f"[SERVER] TCP Port: {TCP_PORT}")
