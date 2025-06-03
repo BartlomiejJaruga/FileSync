@@ -40,12 +40,17 @@ def get_server_file_index(client_id):
 
 def compare_file_indexes(server_index, client_index):
     server_dict = {f["path"]: f["mod_time"] for f in server_index}
+    client_paths = set(client_index.keys())
+
     to_upload = []
     for path, client_mod in client_index.items():
         server_mod = server_dict.get(path)
         if server_mod is None or client_mod > server_mod + 1:
             to_upload.append(path)
-    return to_upload
+
+    to_delete = [path for path in server_dict if path not in client_paths]
+
+    return to_upload, to_delete
 
 
 def save_file_stream(client_id, path, data):

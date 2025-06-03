@@ -1,6 +1,7 @@
 import socket
 import json
 import time
+from datetime import datetime, timedelta
 from common.protocol import MESSAGE_TYPES
 from client.discovery import find_server
 from client.archive_utils import send_file, get_local_file_index
@@ -49,7 +50,9 @@ def start_tcp_client(archive_path, client_id):
 
                 if msg.get("type") == MESSAGE_TYPES["NEXT_SYNC"]:
                     wait_time = int(msg.get("time_in_seconds", "60"))
+                    wake_time = datetime.now() + timedelta(seconds=wait_time)
                     print(f"[CLIENT] No files to sync. Sleeping for {wait_time} seconds.")
+                    print(f"[CLIENT] Will wake and retry at: {wake_time.strftime('%Y-%m-%d %H:%M:%S')}")
                     time.sleep(wait_time)
                     continue
 
@@ -70,7 +73,9 @@ def start_tcp_client(archive_path, client_id):
                     msg = json.loads(next_msg.decode())
                     if msg.get("type") == MESSAGE_TYPES["NEXT_SYNC"]:
                         wait_time = int(msg.get("time_in_seconds", "60"))
+                        wake_time = datetime.now() + timedelta(seconds=wait_time)
                         print(f"[CLIENT] Sync complete. Sleeping for {wait_time} seconds.")
+                        print(f"[CLIENT] Will wake and retry at: {wake_time.strftime('%Y-%m-%d %H:%M:%S')}")
                         time.sleep(wait_time)
                         continue
 

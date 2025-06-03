@@ -2,8 +2,14 @@ import socket
 import threading
 import queue
 import json
+import os
 from common.protocol import MESSAGE_TYPES, make_next_sync_message
-from server.archive_handler import ensure_client_archive_dir, get_server_file_index, compare_file_indexes, save_file_stream
+from server.archive_handler import (
+    ensure_client_archive_dir,
+    get_server_file_index,
+    compare_file_indexes,
+    save_file_stream
+)
 
 active_client_lock = threading.Lock()
 active_client = None
@@ -49,8 +55,19 @@ def handle_client(conn, addr, sync_interval_seconds):
                 server_index = get_server_file_index(client_id)
                 client_index = {f["path"]: f["mod_time"] for f in client_files}
 
-                to_upload = compare_file_indexes(server_index, client_index)
+                to_upload, to_delete = compare_file_indexes(server_index, client_index)
                 expected_files = {f["path"]: f for f in client_files if f["path"] in to_upload}
+
+                # Delete files not present on client anymore
+                client_dir = os.path.join("archives", client_id)
+                for path in to_delete:
+                    try:
+                        full_path = os.path.join(client_dir, path)
+                        if os.path.exists(full_path):
+                            os.remove(full_path)
+                            print(f"[TCP SERVER] Deleted file '{path}' no longer present on client")
+                    except Exception as e:
+                        print(f"[TCP SERVER] Failed to delete '{path}': {e}")
 
                 if not expected_files:
                     conn.send(json.dumps(make_next_sync_message(str(sync_interval_seconds))).encode())
