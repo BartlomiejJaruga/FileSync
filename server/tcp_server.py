@@ -3,6 +3,8 @@ import threading
 import queue
 import json
 from common.protocol import MESSAGE_TYPES
+from server.archive_handler import ensure_client_archive_dir
+
 
 active_client_lock = threading.Lock()
 active_client = None
@@ -25,6 +27,14 @@ def handle_client(conn, addr):
                 msg = json.loads(data.decode())
                 print(f"[TCP SERVER] Received from {addr}:")
                 print(json.dumps(msg, indent=2))
+
+                if msg.get("type") == MESSAGE_TYPES["FILE_INFO"]:
+                    client_id = msg.get("client_id")
+                    if client_id:
+                        ensure_client_archive_dir(client_id)
+                    else:
+                        print(f"[TCP SERVER] Received FILE_INFO without client_id from {addr}")
+
             except json.JSONDecodeError:
                 print(f"[TCP SERVER] Invalid JSON from {addr}")
     except Exception as e:
