@@ -63,8 +63,8 @@ def make_file_transfer_header(path: str, modified: str, size: int):
     }
 
 
-def make_next_sync_message(datetime_str: str):
+def make_next_sync_message(time_in_seconds_str: str):
     return {
         "type": MESSAGE_TYPES["NEXT_SYNC"],
-        "next_time": datetime_str
+        "time_in_seconds": time_in_seconds_str
     }

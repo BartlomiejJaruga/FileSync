@@ -3,21 +3,7 @@ import json
 import os
 from common.protocol import MESSAGE_TYPES
 from client.discovery import find_server
-
-
-def get_file_metadata(archive_path):
-    metadata = []
-    for root, _, files in os.walk(archive_path):
-        for file in files:
-            full_path = os.path.join(root, file)
-            rel_path = os.path.relpath(full_path, archive_path)
-            mod_time = os.path.getmtime(full_path)
-            metadata.append({
-                "filename": file,
-                "path": rel_path,
-                "mod_time": mod_time
-            })
-    return metadata
+from client.archive_utils import send_file, get_local_file_index
 
 
 def start_tcp_client(archive_path, client_id, server_host=None, server_port=None):
@@ -46,15 +32,44 @@ def start_tcp_client(archive_path, client_id, server_host=None, server_port=None
                 elif msg.get("type") == MESSAGE_TYPES["READY"]:
                     print("[CLIENT] Server is ready. Proceeding.")
 
-                file_info = get_file_metadata(archive_path)
+                # Send file metadata
+                file_info = get_local_file_index(archive_path)
                 payload = {
-                    "type": "FILE_INFO",
+                    "type": MESSAGE_TYPES["FILE_INFO"],
                     "client_id": client_id,
                     "files": file_info
                 }
-                sock.send(json.dumps(payload).encode())
+                sock.send((json.dumps(payload) + "\n").encode())
                 print("[CLIENT] File metadata sent.")
 
-                break
+                # Wait for either ARCHIVE_TASKS or NEXT_SYNC
+                response = sock.recv(4096)
+                msg = json.loads(response.decode())
+
+                if msg.get("type") == MESSAGE_TYPES["NEXT_SYNC"]:
+                    print("[CLIENT] No files to synchronize. Sync complete.")
+                    return
+
+                elif msg.get("type") == MESSAGE_TYPES["ARCHIVE_TASKS"]:
+                    upload_list = msg.get("upload", [])
+                    if not upload_list:
+                        print("[CLIENT] No files need to be uploaded.")
+                    else:
+                        print("[CLIENT] Files to upload:")
+                        for file in upload_list:
+                            print(" -", file["path"])
+                            match = next((f for f in file_info if f["path"] == file["path"]), None)
+                            if match:
+                                send_file(sock, archive_path, match)
+
+                # Wait for NEXT_SYNC after sending files
+                while True:
+                    next_msg = sock.recv(1024)
+                    msg = json.loads(next_msg.decode())
+                    if msg.get("type") == MESSAGE_TYPES["NEXT_SYNC"]:
+                        print("[CLIENT] Sync completed. Server responded with NEXT_SYNC.")
+                        return
+
         except Exception as e:
             print(f"[CLIENT] Connection error: {e}. Reconnecting...")
+
