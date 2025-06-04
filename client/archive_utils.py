@@ -36,7 +36,6 @@ def send_file(sock, archive_path, file_info):
     }
 
     sock.send((json.dumps(header) + "\n").encode())
-    time.sleep(0.05)
 
     with open(full_path, "rb") as f:
         while chunk := f.read(4096):

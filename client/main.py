@@ -19,5 +19,5 @@ def get_client_config():
 
 if __name__ == "__main__":
     CLIENT_ID, ARCHIVE_PATH = get_client_config()
-    start_discovery_thread()  # uruchamiamy wątek discovery
+    start_discovery_thread()
     start_tcp_client(ARCHIVE_PATH, CLIENT_ID)

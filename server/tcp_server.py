@@ -58,7 +58,6 @@ def handle_client(conn, addr, sync_interval_seconds):
                 to_upload, to_delete = compare_file_indexes(server_index, client_index)
                 expected_files = {f["path"]: f for f in client_files if f["path"] in to_upload}
 
-                # Delete files not present on client anymore
                 client_dir = os.path.join("archives", client_id)
                 for path in to_delete:
                     try:

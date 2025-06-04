@@ -10,7 +10,6 @@ from client.archive_utils import send_file, get_local_file_index
 def start_tcp_client(archive_path, client_id):
     while True:
         try:
-            # 1. Znajdź serwer TCP przez multicast (czeka na wynik w tle)
             server_host, server_port = find_server()
             print(f"[CLIENT] Connecting to {server_host}:{server_port}...")
 
@@ -19,10 +18,8 @@ def start_tcp_client(archive_path, client_id):
                 sock.connect((server_host, server_port))
                 sock.settimeout(None)
 
-                # 2. Połączenie udane – zatrzymujemy discovery
                 pause_event.set()
 
-                # 3. Pierwsza wiadomość od serwera (READY lub BUSY)
                 initial_msg = sock.recv(1024)
                 msg = json.loads(initial_msg.decode())
 
@@ -37,7 +34,6 @@ def start_tcp_client(archive_path, client_id):
                 elif msg.get("type") == MESSAGE_TYPES["READY"]:
                     print("[CLIENT] Server is ready. Proceeding.")
 
-                # 4. Wyślij listę plików
                 file_info = get_local_file_index(archive_path)
                 payload = {
                     "type": MESSAGE_TYPES["FILE_INFO"],
@@ -47,7 +43,6 @@ def start_tcp_client(archive_path, client_id):
                 sock.send((json.dumps(payload) + "\n").encode())
                 print("[CLIENT] Sent file metadata.")
 
-                # 5. Czekaj na ARCHIVE_TASKS lub NEXT_SYNC
                 response = sock.recv(4096)
                 msg = json.loads(response.decode())
 
@@ -71,7 +66,6 @@ def start_tcp_client(archive_path, client_id):
                             if match:
                                 send_file(sock, archive_path, match)
 
-                    # 6. Oczekiwanie na NEXT_SYNC po przesłaniu plików
                     next_msg = sock.recv(1024)
                     msg = json.loads(next_msg.decode())
                     if msg.get("type") == MESSAGE_TYPES["NEXT_SYNC"]:
@@ -84,5 +78,5 @@ def start_tcp_client(archive_path, client_id):
 
         except Exception as e:
             print(f"[CLIENT] Connection error: {e}. Retrying in 5 seconds...")
-            pause_event.clear()  # ponownie uruchamiamy discovery
+            pause_event.clear()
             time.sleep(5)
