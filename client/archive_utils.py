@@ -1,42 +1,62 @@
 import os
-import time
 import json
 from datetime import datetime
 from common.protocol import MESSAGE_TYPES
 
 
 def get_local_file_index(base_path):
+    # Collects metadata for all files in the given directory (recursively)
     files = []
     for root, _, filenames in os.walk(base_path):
         for filename in filenames:
-            full_path = os.path.join(root, filename)
-            rel_path = os.path.relpath(full_path, base_path).replace("\\", "/")
-            mod_time = os.path.getmtime(full_path)
-            files.append({
-                "filename": filename,
-                "path": rel_path,
-                "mod_time": mod_time
-            })
+            try:
+                full_path = os.path.join(root, filename)
+                rel_path = os.path.relpath(full_path, base_path).replace("\\", "/")
+                mod_time = os.path.getmtime(full_path)  # May raise FileNotFoundError
+                files.append({
+                    "filename": filename,
+                    "path": rel_path,
+                    "mod_time": mod_time
+                })
+            except (OSError, FileNotFoundError) as e:
+                # Skips files that cannot be accessed
+                print(f"[ARCHIVE UTILS] Skipping file '{filename}' due to error: {e}")
     return files
 
 
 def send_file(sock, archive_path, file_info):
-    rel_path = file_info["path"]
-    full_path = os.path.join(archive_path, rel_path)
-    size = os.path.getsize(full_path)
-    mod_time = os.path.getmtime(full_path)
-    iso_time = datetime.utcfromtimestamp(mod_time).isoformat()
+    # Sends a file over the socket connection along with its metadata
+    try:
+        rel_path = file_info["path"]
+        full_path = os.path.join(archive_path, rel_path)
 
-    header = {
-        "type": MESSAGE_TYPES["FILE_TRANSFER"],
-        "path": rel_path,
-        "modified": iso_time,
-        "mod_time": mod_time,
-        "size": size
-    }
+        size = os.path.getsize(full_path)  # May raise OSError
+        mod_time = os.path.getmtime(full_path)  # May raise OSError
+        iso_time = datetime.utcfromtimestamp(mod_time).isoformat()
 
-    sock.send((json.dumps(header) + "\n").encode())
+        header = {
+            "type": MESSAGE_TYPES["FILE_TRANSFER"],
+            "path": rel_path,
+            "modified": iso_time,
+            "mod_time": mod_time,
+            "size": size
+        }
 
-    with open(full_path, "rb") as f:
-        while chunk := f.read(4096):
-            sock.sendall(chunk)
+        # Send JSON header
+        sock.send((json.dumps(header) + "\n").encode())
+
+        # Send file contents in chunks
+        with open(full_path, "rb") as f:
+            while True:
+                chunk = f.read(4096)
+                if not chunk:
+                    break
+                sock.sendall(chunk)  # May raise socket.error
+        print(f"[ARCHIVE UTILS] Sent file '{rel_path}' ({size} bytes)")
+
+    except (OSError, FileNotFoundError) as e:
+        # Handle errors related to file access
+        print(f"[ARCHIVE UTILS] Failed to read or send file '{file_info.get('path')}': {e}")
+    except Exception as e:
+        # Catch-all for socket or encoding-related issues
+        print(f"[ARCHIVE UTILS] Unexpected error while sending file: {e}")

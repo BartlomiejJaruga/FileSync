@@ -1,9 +1,16 @@
 import time
+import threading
+import signal
+import sys
 from server.udp_discovery import start_udp_discovery_server
 from server.tcp_server import start_tcp_server
 
+# Global variable to store the main loop control state
+stop_event = threading.Event()
+
 
 def get_server_config():
+    # Prompt the user for TCP port and sync interval with validation
     while True:
         port_input = input("Enter TCP server port (1025-65535): ").strip()
         if port_input.isdigit():
@@ -21,15 +28,33 @@ def get_server_config():
     return port, int(sync_input)
 
 
+def shutdown_handler(signum, frame):
+    # Handle graceful shutdown on SIGINT or SIGTERM
+    print("\n[SERVER] Shutdown requested by user...")
+    stop_event.set()
+    sys.exit(0)
+
+
 if __name__ == "__main__":
-    TCP_PORT, SYNC_INTERVAL_SECONDS = get_server_config()
+    # Register signal handlers for clean exit
+    signal.signal(signal.SIGINT, shutdown_handler)
+    signal.signal(signal.SIGTERM, shutdown_handler)
 
-    start_udp_discovery_server(TCP_PORT)
-    start_tcp_server(port=TCP_PORT, sync_interval_seconds=SYNC_INTERVAL_SECONDS)
+    try:
+        TCP_PORT, SYNC_INTERVAL_SECONDS = get_server_config()
 
-    print("[SERVER] USP Server is running...")
-    print(f"[SERVER] TCP Port: {TCP_PORT}")
-    print(f"[SERVER] Sync Interval: {SYNC_INTERVAL_SECONDS} seconds")
+        # Start UDP and TCP servers
+        start_udp_discovery_server(TCP_PORT)
+        start_tcp_server(port=TCP_PORT, sync_interval_seconds=SYNC_INTERVAL_SECONDS)
 
-    while True:
-        time.sleep(1)
+        print("[SERVER] USP Server is running...")
+        print(f"[SERVER] TCP Port: {TCP_PORT}")
+        print(f"[SERVER] Sync Interval: {SYNC_INTERVAL_SECONDS} seconds")
+
+        # Keep main thread alive until interrupted
+        while not stop_event.is_set():
+            time.sleep(1)
+
+    except Exception as e:
+        print(f"[SERVER] Critical error: {e}")
+        sys.exit(1)
