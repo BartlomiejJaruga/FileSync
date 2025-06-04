@@ -84,6 +84,7 @@ def handle_client(conn, addr, sync_interval_seconds):
             elif msg_type == MESSAGE_TYPES.get("FILE_TRANSFER"):
                 path = msg["path"]
                 size = msg["size"]
+                mod_time = msg["mod_time"]
 
                 print(f"[TCP SERVER] Receiving file '{path}' ({size} bytes) from {addr}")
                 received_data = b""
@@ -93,7 +94,7 @@ def handle_client(conn, addr, sync_interval_seconds):
                         raise Exception("Connection lost during file transfer.")
                     received_data += chunk
 
-                save_file_stream(client_id, path, received_data)
+                save_file_stream(client_id, path, received_data, mod_time)
                 print(f"[TCP SERVER] Saved file '{path}'")
                 expected_files.pop(path, None)
 

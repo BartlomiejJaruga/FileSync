@@ -27,42 +27,6 @@ def make_offer_message(port: int):
     }
 
 
-def make_busy_message():
-    return {
-        "type": MESSAGE_TYPES["BUSY"]
-    }
-
-
-def make_ready_message():
-    return {
-        "type": MESSAGE_TYPES["READY"]
-    }
-
-
-def make_archive_list(client_id: str, files: list):
-    return {
-        "type": MESSAGE_TYPES["ARCHIVE_LIST"],
-        "client_id": client_id,
-        "files": files
-    }
-
-
-def make_archive_tasks(upload_list: list):
-    return {
-        "type": MESSAGE_TYPES["ARCHIVE_TASKS"],
-        "upload": upload_list
-    }
-
-
-def make_file_transfer_header(path: str, modified: str, size: int):
-    return {
-        "type": MESSAGE_TYPES["FILE_TRANSFER"],
-        "path": path,
-        "modified": modified,
-        "size": size
-    }
-
-
 def make_next_sync_message(time_in_seconds_str: str):
     return {
         "type": MESSAGE_TYPES["NEXT_SYNC"],

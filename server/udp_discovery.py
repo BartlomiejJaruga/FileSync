@@ -1,11 +1,9 @@
 import socket
 import struct
 import threading
-from common.protocol import make_offer_message, MESSAGE_TYPES
 import json
-
-MULTICAST_GROUP = '224.1.1.1'
-MULTICAST_PORT = 5007
+from common.protocol import make_offer_message, MESSAGE_TYPES
+from common.utils import MULTICAST_GROUP, MULTICAST_PORT
 
 
 def start_udp_discovery_server(tcp_port):

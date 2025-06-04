@@ -9,8 +9,6 @@ def ensure_archives_dir_exists():
     if not os.path.exists(ARCHIVES_ROOT):
         os.makedirs(ARCHIVES_ROOT)
         print(f"[ARCHIVE HANDLER] Created root archive directory: {ARCHIVES_ROOT}")
-    else:
-        print(f"[ARCHIVE HANDLER] Root archive directory already exists.")
 
 
 def ensure_client_archive_dir(client_id):
@@ -20,8 +18,6 @@ def ensure_client_archive_dir(client_id):
     if not os.path.exists(client_dir):
         os.makedirs(client_dir)
         print(f"[ARCHIVE HANDLER] Created archive directory for client: {client_id}")
-    else:
-        print(f"[ARCHIVE HANDLER] Archive directory already exists for client: {client_id}")
 
     return client_dir
 
@@ -53,9 +49,17 @@ def compare_file_indexes(server_index, client_index):
     return to_upload, to_delete
 
 
-def save_file_stream(client_id, path, data):
+def save_file_stream(client_id, path, data, mod_time=None):
     client_dir = ensure_client_archive_dir(client_id)
     full_path = os.path.join(client_dir, path)
     os.makedirs(os.path.dirname(full_path), exist_ok=True)
+
     with open(full_path, "wb") as f:
         f.write(data)
+
+    if mod_time is not None:
+        try:
+            os.utime(full_path, (mod_time, mod_time))
+            print(f"[ARCHIVE HANDLER] Restored mtime for '{path}': {time.ctime(mod_time)}")
+        except Exception as e:
+            print(f"[ARCHIVE HANDLER] Failed to set mtime for '{path}': {e}")

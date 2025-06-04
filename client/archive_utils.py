@@ -31,16 +31,13 @@ def send_file(sock, archive_path, file_info):
         "type": MESSAGE_TYPES["FILE_TRANSFER"],
         "path": rel_path,
         "modified": iso_time,
+        "mod_time": mod_time,
         "size": size
     }
 
-    # Wyślij nagłówek JSON zakończony \n
     sock.send((json.dumps(header) + "\n").encode())
-
-    # Krótkie opóźnienie, żeby nagłówek i dane nie zlały się
     time.sleep(0.05)
 
-    # Wyślij dane pliku
     with open(full_path, "rb") as f:
         while chunk := f.read(4096):
             sock.sendall(chunk)
